@@ -48,16 +48,21 @@ runs:
       shell: bash
       run: |
         set -eu
+        VERSION="$(node -p "require('./package.json').version")"
+        out="packaging/out"
+        deb="$out/technitium-console_${VERSION}_all.deb"
+        ai="$out/technitium-console-${VERSION}-x86_64.AppImage"
+        rpm="$(find "$out" -maxdepth 1 -type f -name 'technitium-console-*.noarch.rpm')"
+        [ -f "$deb" ] && [ -f "$ai" ] && [ -n "$rpm" ] && [ -f "$rpm" ] \
+          || { echo "A distro artifact is missing:"; ls -la "$out"; exit 1; }
+        [ "$(printf '%s\n' "$rpm" | wc -l)" = "1" ] || { echo "More than one .rpm."; exit 1; }
         (cd dist && find . -type f | LC_ALL=C sort) > "$RUNNER_TEMP/dist-files"
-        deb="$(ls packaging/out/technitium-console_*.deb)"
         dpkg-deb -c "$deb" | awk '$1 ~ /^-/ { print $6 }' \
           | sed -n 's|^\./usr/share/technitium-console/|./|p' | LC_ALL=C sort > "$RUNNER_TEMP/deb-files"
         diff "$RUNNER_TEMP/dist-files" "$RUNNER_TEMP/deb-files"
-        rpm="$(ls packaging/out/technitium-console-*.noarch.rpm)"
         rpm -qlpv "$rpm" | awk '$1 ~ /^-/ { print $NF }' \
           | sed -n 's|^/usr/share/technitium-console|.|p' | LC_ALL=C sort > "$RUNNER_TEMP/rpm-files"
         diff "$RUNNER_TEMP/dist-files" "$RUNNER_TEMP/rpm-files"
-        ai="$(ls packaging/out/technitium-console-*-x86_64.AppImage)"
         rm -rf "$RUNNER_TEMP/ai-check" && mkdir -p "$RUNNER_TEMP/ai-check"
         (cd "$RUNNER_TEMP/ai-check" && "$GITHUB_WORKSPACE/$ai" --appimage-extract >/dev/null)
         (cd "$RUNNER_TEMP/ai-check/squashfs-root/usr/share/technitium-console" \

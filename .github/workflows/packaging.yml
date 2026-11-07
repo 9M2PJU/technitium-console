@@ -30,17 +30,19 @@ jobs:
       - uses: ./.github/actions/console-tarball
       - uses: ./.github/actions/distro-packages
 
-      # Every shell file this PR ships parses, including the PKGBUILDs
-      # and the AUR .install scripts (bash -n reads, never runs).
+      # Every shell file this PR ships parses (PKGBUILDs are bash, the
+      # rest is POSIX sh; both are read, never run, here).
       - name: Shell files parse
         shell: bash
         run: |
           set -eu
           for f in packaging/build-*.sh packaging/appimage/AppRun \
                    packaging/deb/postinst \
-                   packaging/arch/*/PKGBUILD \
                    packaging/arch/*/technitium-console.install; do
             sh -n "$f" || exit 1
+          done
+          for f in packaging/arch/*/PKGBUILD; do
+            bash -n "$f" || exit 1
           done
           echo "Shell files parse."
 
