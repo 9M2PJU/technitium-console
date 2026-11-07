@@ -78,17 +78,21 @@ install/upgrade via `technitium-console.install`.
 
 ### Submitting a new version to the AUR
 
+Every pull request already builds both packages on GitHub
+([`packaging.yml`](../.github/workflows/packaging.yml): makepkg plus
+namcap in Arch containers, and the full test suite in the `distro` job),
+so this is only the push itself. Bump `pkgver` in both PKGBUILDs (and the
+-bin `sha256sums` from the release's `technitium-console.tar.gz.sha256`),
+then refresh metadata:
+
 ```sh
-# 1. Bump pkgver in both PKGBUILDs (and the -bin sha256sums from the
-#    release's technitium-console.tar.gz.sha256), then refresh metadata:
 cd packaging/arch/technitium-console-bin && makepkg --printsrcinfo > .SRCINFO
 cd ../technitium-console-git && makepkg --printsrcinfo > .SRCINFO
+```
 
-# 2. Test-build (use a clean chroot for releases: extra-x86_64-build):
-cd packaging/arch/technitium-console-bin && makepkg -s
-cd ../technitium-console-git && makepkg -s
+Push each package base to the AUR (needs an AUR account with this key):
 
-# 3. Push each package base to the AUR (needs an AUR account with this key):
+```sh
 git clone ssh://aur@aur.archlinux.org/technitium-console-bin.git /tmp/aur-bin
 cp packaging/arch/technitium-console-bin/{PKGBUILD,.SRCINFO,technitium-console.install} /tmp/aur-bin/
 cd /tmp/aur-bin && git add PKGBUILD .SRCINFO technitium-console.install \
