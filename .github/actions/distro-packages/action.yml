@@ -30,12 +30,16 @@ runs:
         sh packaging/build-deb.sh
         sh packaging/build-rpm.sh
         PATH="$RUNNER_TEMP:$PATH" sh packaging/build-appimage.sh
-        # Temporary diagnosis: where did the builders put their files?
-        echo "step cwd: $PWD"
-        ls -la "$PWD" | head -30
-        ls -la packaging/out || true
-        (cd packaging/out && sha256sum technitium-console_*.deb technitium-console-*.noarch.rpm technitium-console-*-x86_64.AppImage > distro-packages.sha256)
-        sha256sum -c packaging/out/distro-packages.sha256
+        # What got built, and the checksums of exactly those files. Names are
+        # spelled out (the .rpm's dist tag aside) so a mistyped pattern
+        # cannot silently checksum nothing; both halves run where the bare
+        # names in distro-packages.sha256 resolve.
+        VERSION="$(node -p "require('./package.json').version")"
+        ls -la packaging/out
+        (cd packaging/out && rpm="$(ls technitium-console-*.noarch.rpm)" && \
+          sha256sum "technitium-console_${VERSION}_all.deb" "$rpm" \
+            "technitium-console-${VERSION}-x86_64.AppImage" > distro-packages.sha256 && \
+          sha256sum -c distro-packages.sha256)
         cat packaging/out/distro-packages.sha256
 
     # A packer is only trusted when its output is measured: every payload
