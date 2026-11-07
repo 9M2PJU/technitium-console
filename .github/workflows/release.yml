@@ -30,16 +30,35 @@ jobs:
       # their checksums, each payload diffed against dist/ inside the action.
       - uses: ./.github/actions/distro-packages
 
+      # The release job below expects exactly six files, flat: the tarball,
+      # the distro packages of the same bytes and one checksum file per
+      # group. Staged outside the checkout, like the tarball dir the release
+      # job downloads into; uploading packaging/out directly would carry
+      # its folders along.
+      - name: Stage the release files
+        shell: bash
+        run: |
+          set -eu
+          rm -rf "${{ runner.temp }}/release-files"
+          mkdir -p "${{ runner.temp }}/release-files"
+          cp technitium-console.tar.gz technitium-console.tar.gz.sha256 \
+            "${{ runner.temp }}/release-files/"
+          deb="$(find packaging/out -maxdepth 1 -type f -name 'technitium-console_*.deb')"
+          rpm="$(find packaging/out -maxdepth 1 -type f -name 'technitium-console-*.noarch.rpm')"
+          ai="$(find packaging/out -maxdepth 1 -type f -name 'technitium-console-*-x86_64.AppImage')"
+          [ "$(printf '%s\n' "$deb" | wc -l)" = "1" ] && [ -f "$deb" ] \
+            || { echo "No (or more than one) .deb was built." >&2; exit 1; }
+          [ "$(printf '%s\n' "$rpm" | wc -l)" = "1" ] && [ -f "$rpm" ] \
+            || { echo "No (or more than one) .rpm was built." >&2; exit 1; }
+          [ "$(printf '%s\n' "$ai" | wc -l)" = "1" ] && [ -f "$ai" ] \
+            || { echo "No (or more than one) AppImage was built." >&2; exit 1; }
+          cp "$deb" "$rpm" "$ai" packaging/out/distro-packages.sha256 \
+            "${{ runner.temp }}/release-files/"
+
       - uses: actions/upload-artifact@v7
         with:
           name: console-tarball
-          path: |
-            technitium-console.tar.gz
-            technitium-console.tar.gz.sha256
-            packaging/out/technitium-console_*.deb
-            packaging/out/technitium-console-*.noarch.rpm
-            packaging/out/technitium-console-*-x86_64.AppImage
-            packaging/out/distro-packages.sha256
+          path: ${{ runner.temp }}/release-files
           if-no-files-found: error
           # A day: "Re-run failed jobs" of `release` after that fails at the
           # download; "Re-run all jobs" is the way.
@@ -81,11 +100,13 @@ jobs:
           for f in technitium-console.tar.gz technitium-console.tar.gz.sha256 distro-packages.sha256; do
             [ -f "$f" ] || { echo "The artifact is missing $f." >&2; exit 1; }
           done
-          [ "$(ls technitium-console_*.deb 2>/dev/null | wc -l)" = "1" ] \
+          # Artifact names are found with find, not shell globs, and counted:
+          # exactly one of each distro package, six files in all.
+          [ "$(find . -maxdepth 1 -type f -name 'technitium-console_*.deb' | wc -l)" = "1" ] \
             || { echo "The artifact holds no (or more than one) .deb." >&2; exit 1; }
-          [ "$(ls technitium-console-*.noarch.rpm 2>/dev/null | wc -l)" = "1" ] \
+          [ "$(find . -maxdepth 1 -type f -name 'technitium-console-*.noarch.rpm' | wc -l)" = "1" ] \
             || { echo "The artifact holds no (or more than one) .rpm." >&2; exit 1; }
-          [ "$(ls technitium-console-*-x86_64.AppImage 2>/dev/null | wc -l)" = "1" ] \
+          [ "$(find . -maxdepth 1 -type f -name 'technitium-console-*-x86_64.AppImage' | wc -l)" = "1" ] \
             || { echo "The artifact holds no (or more than one) AppImage." >&2; exit 1; }
           [ "$(ls | wc -l)" = "6" ] || {
             echo "The artifact holds something other than the tarball, the distro packages and their checksums." >&2; exit 1; }
@@ -98,9 +119,9 @@ jobs:
         id: packages
         working-directory: ${{ runner.temp }}/tarball
         run: |
-          echo "deb=$(ls technitium-console_*.deb)" >> "$GITHUB_OUTPUT"
-          echo "rpm=$(ls technitium-console-*.noarch.rpm)" >> "$GITHUB_OUTPUT"
-          echo "appimage=$(ls technitium-console-*-x86_64.AppImage)" >> "$GITHUB_OUTPUT"
+          echo "deb=$(find . -maxdepth 1 -type f -name 'technitium-console_*.deb' -printf '%f')" >> "$GITHUB_OUTPUT"
+          echo "rpm=$(find . -maxdepth 1 -type f -name 'technitium-console-*.noarch.rpm' -printf '%f')" >> "$GITHUB_OUTPUT"
+          echo "appimage=$(find . -maxdepth 1 -type f -name 'technitium-console-*-x86_64.AppImage' -printf '%f')" >> "$GITHUB_OUTPUT"
 
       # Docker's floating tags only ever move forward (latest to the highest
       # release, X.Y to the highest of its line; prereleases move neither), as
