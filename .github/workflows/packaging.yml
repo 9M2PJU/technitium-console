@@ -10,6 +10,7 @@ on:
   pull_request:
   push:
     branches: [main, develop]
+  workflow_dispatch: # the same compile, on demand, from any branch
 
 permissions: {}
 
