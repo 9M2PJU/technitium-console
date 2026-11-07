@@ -30,6 +30,10 @@ runs:
         sh packaging/build-deb.sh
         sh packaging/build-rpm.sh
         PATH="$RUNNER_TEMP:$PATH" sh packaging/build-appimage.sh
+        # Temporary diagnosis: where did the builders put their files?
+        echo "step cwd: $PWD"
+        ls -la "$PWD" | head -30
+        ls -la packaging/out || true
         (cd packaging/out && sha256sum technitium-console_*.deb technitium-console-*.noarch.rpm technitium-console-*-x86_64.AppImage > distro-packages.sha256)
         sha256sum -c packaging/out/distro-packages.sha256
         cat packaging/out/distro-packages.sha256
