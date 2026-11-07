@@ -22,7 +22,9 @@ runs:
         set -eu
         [ -f dist/index.html ] || { echo "dist/ is missing: run console-tarball first." >&2; exit 1; }
         sudo apt-get update -qq
-        sudo apt-get install -y -qq rpm
+        # rpm packs the .rpm; desktop-file-validate is appimagetool's own
+        # gate on the .desktop file, and it is not preinstalled.
+        sudo apt-get install -y -qq rpm desktop-file-utils
         curl -fsSL "$APPIMAGETOOL_URL" -o "$RUNNER_TEMP/appimagetool"
         chmod +x "$RUNNER_TEMP/appimagetool"
         sh packaging/build-deb.sh
